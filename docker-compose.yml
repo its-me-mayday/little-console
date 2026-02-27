@@ -1,0 +1,40 @@
+services:
+  redpanda:
+    image: redpandadata/redpanda:latest
+    command: >
+      redpanda start
+      --overprovisioned
+      --smp 1
+      --memory 1G
+      --reserve-memory 0M
+      --node-id 0
+      --check=false
+    ports:
+      - "9092:9092"
+    networks:
+      - devnet
+  
+  redpanda-ui:
+    image: redpandadata/console:latest
+    environment:
+      - KAFKA_BROKERS=host.docker.internal:9092
+    ports:
+      - "8080:8080"
+    networks:
+      - devnet
+
+  mongodb:
+    image: mongo:6
+    container_name: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - devnet
+
+networks:
+  devnet:
+
+volumes:
+  mongo_data:
