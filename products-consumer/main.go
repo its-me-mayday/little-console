@@ -30,7 +30,7 @@ type CloudEvent struct {
 }
 
 func main() {
-	fmt.Println("Start Consumer")
+	fmt.Println("Product Consumer Started")
 
 	brokers := os.Getenv("KAFKA_BROKERS")
 	if brokers == "" {
@@ -47,12 +47,11 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sigchan := make(chan os.Signal, 1)
-	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		<-sigchan
-		fmt.Println("Shutdown received")
+		<-signals
 		cancel()
 	}()
 
@@ -62,7 +61,7 @@ func main() {
 			if ctx.Err() != nil {
 				break
 			}
-			fmt.Println("Error:", err)
+			fmt.Println("Read error:", err)
 			continue
 		}
 
@@ -73,11 +72,24 @@ func main() {
 			continue
 		}
 
-		fmt.Printf("Event received: %s\n", event.Type)
-		fmt.Printf("Product ID: %s\n", event.Data.ProductID)
-		fmt.Printf("Name: %s\n", event.Data.Name)
-		fmt.Printf("Supplier: %s\n", event.Data.Supplier)
-		fmt.Printf("Customer: %s\n", event.Data.Customer)
-		fmt.Println("------")
+		switch event.Type {
+		case "product.created":
+			handleProductCreated(event)
+		default:
+			fmt.Printf("Ignored event type: %s\n", event.Type)
+		}
 	}
+}
+
+func handleProductCreated(event CloudEvent) {
+	p := event.Data
+
+	fmt.Println("Processing product.created event")
+	fmt.Printf("Event ID: %s\n", event.ID)
+	fmt.Printf("Product ID: %s\n", p.ProductID)
+	fmt.Printf("Name: %s\n", p.Name)
+	fmt.Printf("Description: %s\n", p.Description)
+	fmt.Printf("Supplier: %s\n", p.Supplier)
+	fmt.Printf("Customer: %s\n", p.Customer)
+	fmt.Println("-----")
 }
