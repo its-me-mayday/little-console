@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -9,6 +10,24 @@ import (
 
 	"github.com/segmentio/kafka-go"
 )
+
+type Product struct {
+	ProductID   string `json:"product_id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Supplier    string `json:"supplier"`
+	Customer    string `json:"customer"`
+}
+
+type CloudEvent struct {
+	SpecVersion     string  `json:"specversion"`
+	ID              string  `json:"id"`
+	Type            string  `json:"type"`
+	Source          string  `json:"source"`
+	Time            string  `json:"time"`
+	DataContentType string  `json:"datacontenttype"`
+	Data            Product `json:"data"`
+}
 
 func main() {
 	fmt.Println("Start Consumer")
@@ -18,15 +37,11 @@ func main() {
 		panic("KAFKA_BROKERS not set")
 	}
 
-	topic := "test-topic"
-	groupID := "products-consumer-group"
-
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: []string{brokers},
-		Topic:   topic,
-		GroupID: groupID,
+		Topic:   "test-topic",
+		GroupID: "products-consumer-group",
 	})
-
 	defer reader.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -37,7 +52,7 @@ func main() {
 
 	go func() {
 		<-sigchan
-		fmt.Println("Received shutdown")
+		fmt.Println("Shutdown received")
 		cancel()
 	}()
 
@@ -45,17 +60,24 @@ func main() {
 		msg, err := reader.ReadMessage(ctx)
 		if err != nil {
 			if ctx.Err() != nil {
-				fmt.Println("Terminate consumer")
 				break
 			}
 			fmt.Println("Error:", err)
 			continue
 		}
 
-	fmt.Printf("Key=%s Value=%s\n", string(msg.Key), string(msg.Value))
+		var event CloudEvent
+		err = json.Unmarshal(msg.Value, &event)
+		if err != nil {
+			fmt.Println("Invalid JSON:", err)
+			continue
+		}
 
-	for _, h := range msg.Headers {
-		fmt.Printf("Header: %s=%s\n", h.Key, string(h.Value))
-	}
+		fmt.Printf("Event received: %s\n", event.Type)
+		fmt.Printf("Product ID: %s\n", event.Data.ProductID)
+		fmt.Printf("Name: %s\n", event.Data.Name)
+		fmt.Printf("Supplier: %s\n", event.Data.Supplier)
+		fmt.Printf("Customer: %s\n", event.Data.Customer)
+		fmt.Println("------")
 	}
 }
