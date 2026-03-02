@@ -26,7 +26,7 @@ services:
   redpanda-ui:
     image: redpandadata/console:latest
     environment:
-      - KAFKA_BROKERS=host.docker.internal:9092
+      - KAFKA_BROKERS=redpanda:9092 # KAFKA_BROKERS=host.docker.internal:9092
     ports:
       - "8080:8080"
     networks:
@@ -50,6 +50,20 @@ services:
     environment:
       KAFKA_BROKERS: redpanda:9092
       MONGO_URL: mongodb://mongodb:27017
+    networks:
+      - devnet
+  
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mongo-express
+    depends_on:
+      - mongodb
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongodb
+      ME_CONFIG_MONGODB_PORT: 27017
+      ME_CONFIG_BASICAUTH: "false"
+    ports:
+      - "8090:8081"
     networks:
       - devnet
 
